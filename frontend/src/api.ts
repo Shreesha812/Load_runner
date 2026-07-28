@@ -38,3 +38,9 @@ export const downloadJson = (runId: string) =>
 
 export const downloadCsv = (runId: string) =>
   window.open(`${BASE}/results/${runId}/csv`, "_blank");
+
+export async function compareRuns(runA: string, runB: string) {
+  const res = await fetch(`${BASE}/compare?run_a=${runA}&run_b=${runB}`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}

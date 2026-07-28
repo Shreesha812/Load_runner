@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
-import { Clock, ChevronRight, RefreshCw } from "lucide-react";
+import { Clock, ChevronRight, RefreshCw, ArrowLeftRight } from "lucide-react";
 import { listRuns } from "../api";
 import type { RunSummary } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 
 interface Props {
-  onSelect: (run: RunSummary) => void;
+  onSelect:  (run: RunSummary) => void;
+  onCompare: (runId: string)   => void;
 }
 
-export function HistoryPage({ onSelect }: Props) {
-  const [runs, setRuns] = useState<RunSummary[]>([]);
+export function HistoryPage({ onSelect, onCompare }: Props) {
+  const [runs, setRuns]       = useState<RunSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -21,18 +22,17 @@ export function HistoryPage({ onSelect }: Props) {
 
   useEffect(() => { load(); }, []);
 
-  const fmtDate = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, { month: "short", day: "numeric",
-      hour: "2-digit", minute: "2-digit" });
-  };
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleString(undefined, {
+      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+    });
 
   const totalReqs = (run: RunSummary) =>
     run.results.reduce((s, r) => s + r.metrics.total_requests, 0);
 
   const successRate = (run: RunSummary) => {
     const total = run.results.reduce((s, r) => s + r.metrics.total_requests, 0);
-    const ok = run.results.reduce((s, r) => s + r.metrics.successful_requests, 0);
+    const ok    = run.results.reduce((s, r) => s + r.metrics.successful_requests, 0);
     return total > 0 ? ((ok / total) * 100).toFixed(1) + "%" : "—";
   };
 
@@ -50,9 +50,7 @@ export function HistoryPage({ onSelect }: Props) {
         </button>
       </div>
 
-      {loading && (
-        <div className="text-center py-16 text-gray-600">Loading…</div>
-      )}
+      {loading && <div className="text-center py-16 text-gray-600">Loading…</div>}
 
       {!loading && runs.length === 0 && (
         <div className="text-center py-16">
@@ -64,23 +62,42 @@ export function HistoryPage({ onSelect }: Props) {
       {!loading && runs.length > 0 && (
         <div className="space-y-2">
           {runs.map((run) => (
-            <button
+            <div
               key={run.run_id}
-              onClick={() => onSelect(run)}
-              disabled={run.status === "running" || run.status === "pending"}
-              className="w-full text-left rounded-lg border border-gray-800 bg-gray-900/40 p-4
-                hover:border-gray-700 hover:bg-gray-900/70 disabled:opacity-50 disabled:cursor-default
-                transition-all group"
+              className="rounded-lg border border-gray-800 bg-gray-900/40
+                hover:border-gray-700 hover:bg-gray-900/70 transition-all"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center p-4 gap-3">
+                {/* Main clickable area */}
+                <button
+                  onClick={() => onSelect(run)}
+                  disabled={run.status === "running" || run.status === "pending"}
+                  className="flex-1 flex items-center gap-3 min-w-0 text-left
+                    disabled:opacity-50 disabled:cursor-default group"
+                >
                   <StatusBadge status={run.status} />
                   <span className="text-white font-medium truncate">{run.filename}</span>
                   <span className="text-gray-600 font-mono text-xs shrink-0">#{run.run_id}</span>
-                </div>
-                <ChevronRight size={16} className="text-gray-600 group-hover:text-gray-400 shrink-0 ml-2 transition-colors" />
+                  <ChevronRight size={16}
+                    className="text-gray-600 group-hover:text-gray-400 shrink-0 ml-auto transition-colors" />
+                </button>
+
+                {/* Compare button — only for completed runs */}
+                {run.status === "done" && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onCompare(run.run_id); }}
+                    title="Compare this run"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-gray-700
+                      hover:border-brand-600 hover:bg-brand-900/20 text-gray-500 hover:text-brand-400
+                      text-xs transition-colors shrink-0 ml-2"
+                  >
+                    <ArrowLeftRight size={12} /> Compare
+                  </button>
+                )}
               </div>
-              <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500">
+
+              {/* Meta row */}
+              <div className="px-4 pb-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500">
                 <span>{fmtDate(run.started_at)}</span>
                 {run.results.length > 0 && (
                   <>
@@ -93,7 +110,7 @@ export function HistoryPage({ onSelect }: Props) {
                   <span className="text-red-400 truncate max-w-xs">{run.error}</span>
                 )}
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}

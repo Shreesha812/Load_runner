@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, ArrowLeft, ChevronDown, ChevronUp, CheckCircle, XCircle } from "lucide-react";
+import { Download, ArrowLeft, ChevronDown, ChevronUp, CheckCircle, XCircle, ArrowLeftRight } from "lucide-react";
 import type { TestResult, RequestEntry } from "../types";
 import { MetricCard } from "../components/MetricCard";
 import { MetricsTable } from "../components/MetricsTable";
@@ -10,6 +10,7 @@ interface Props {
   runId: string;
   results: TestResult[];
   onBack: () => void;
+  onCompare?: (runId: string) => void;
 }
 
 function aggregate(results: TestResult[]) {
@@ -107,7 +108,7 @@ function OverallStatusBadge({ status }: { status: string }) {
   );
 }
 
-export function ResultsPage({ runId, results, onBack }: Props) {
+export function ResultsPage({ runId, results, onBack, onCompare }: Props) {
   const agg = aggregate(results);
 
   return (
@@ -124,6 +125,14 @@ export function ResultsPage({ runId, results, onBack }: Props) {
         </div>
         {agg && <OverallStatusBadge status={agg.overallStatus} />}
         <div className="flex gap-2">
+          {onCompare && (
+            <button onClick={() => onCompare(runId)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-700
+                hover:border-brand-600 hover:bg-brand-900/20 text-gray-300 hover:text-brand-400
+                text-sm transition-colors">
+              <ArrowLeftRight size={14} /> Compare
+            </button>
+          )}
           <button onClick={() => downloadJson(runId)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-700
               hover:border-gray-600 text-gray-300 hover:text-white text-sm transition-colors">

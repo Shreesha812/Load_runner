@@ -1,28 +1,42 @@
 import { useState } from "react";
-import { UploadCloud, History, Zap } from "lucide-react";
+import { UploadCloud, History, ArrowLeftRight, Zap } from "lucide-react";
 import { UploadPage } from "./pages/Upload";
 import { LivePage } from "./pages/Live";
 import { ResultsPage } from "./pages/Results";
 import { HistoryPage } from "./pages/History";
+import { ComparePage } from "./pages/Compare";
 import type { RunSummary, TestResult } from "./types";
 
-type View = "upload" | "live" | "results" | "history";
+type View = "upload" | "live" | "results" | "history" | "compare";
 
 export default function App() {
-  const [view, setView]       = useState<View>("upload");
-  const [runId, setRunId]     = useState("");
-  const [results, setResults] = useState<TestResult[]>([]);
+  const [view, setView]         = useState<View>("upload");
+  const [runId, setRunId]       = useState("");
+  const [results, setResults]   = useState<TestResult[]>([]);
+  const [compareA, setCompareA] = useState<string | undefined>();
 
   const handleRunStarted = (id: string) => { setRunId(id); setResults([]); setView("live"); };
   const handleDone       = (r: TestResult[]) => { setResults(r); setView("results"); };
+
   const handleHistorySelect = (run: RunSummary) => {
     setRunId(run.run_id); setResults(run.results); setView("results");
+  };
+
+  const handleCompareFrom = (runId: string) => {
+    setCompareA(runId);
+    setView("compare");
   };
 
   const nav = [
     { id: "upload",  label: "New Run", icon: UploadCloud },
     { id: "history", label: "History", icon: History },
+    { id: "compare", label: "Compare", icon: ArrowLeftRight },
   ] as const;
+
+  const activeNav = (id: string) =>
+    view === id ||
+    (view === "results"  && id === "history") ||
+    (view === "compare"  && id === "compare");
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -37,7 +51,7 @@ export default function App() {
             {nav.map(({ id, label, icon: Icon }) => (
               <button key={id} onClick={() => setView(id as View)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors
-                  ${view === id || (view === "results" && id === "history")
+                  ${activeNav(id)
                     ? "bg-gray-800 text-white"
                     : "text-gray-400 hover:text-gray-200 hover:bg-gray-900"}`}>
                 <Icon size={15} />{label}
@@ -50,8 +64,26 @@ export default function App() {
       <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-10">
         {view === "upload"  && <UploadPage onRunStarted={handleRunStarted} />}
         {view === "live"    && <LivePage runId={runId} onDone={handleDone} />}
-        {view === "results" && <ResultsPage runId={runId} results={results} onBack={() => setView("history")} />}
-        {view === "history" && <HistoryPage onSelect={handleHistorySelect} />}
+        {view === "results" && (
+          <ResultsPage
+            runId={runId}
+            results={results}
+            onBack={() => setView("history")}
+            onCompare={handleCompareFrom}
+          />
+        )}
+        {view === "history" && (
+          <HistoryPage
+            onSelect={handleHistorySelect}
+            onCompare={handleCompareFrom}
+          />
+        )}
+        {view === "compare" && (
+          <ComparePage
+            preselectedA={compareA}
+            onBack={() => setView("history")}
+          />
+        )}
       </main>
     </div>
   );

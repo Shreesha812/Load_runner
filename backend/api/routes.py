@@ -185,3 +185,76 @@ async def download_csv(run_id: str):
             })
 
     return FileResponse(path, filename=f"results_{run_id}.csv", media_type="text/csv")
+
+
+# ── GET /api/compare ──────────────────────────────────────────────────────
+@router.get("/compare")
+async def compare_runs(run_a: str, run_b: str):
+    """
+    Return both runs side by side with per-metric deltas.
+    Delta = run_b value - run_a value (positive = run_b is higher).
+    """
+    a = await store.get(run_a)
+    b = await store.get(run_b)
+
+    if not a:
+        raise HTTPException(404, f"Run {run_a!r} not found.")
+    if not b:
+        raise HTTPException(404, f"Run {run_b!r} not found.")
+    if a.status != RunStatus.done:
+        raise HTTPException(409, f"Run {run_a!r} is not complete yet.")
+    if b.status != RunStatus.done:
+        raise HTTPException(409, f"Run {run_b!r} is not complete yet.")
+
+    def _metrics_dict(m) -> dict:
+        return {
+            "total_requests":      m.total_requests,
+            "successful_requests": m.successful_requests,
+            "failed_requests":     m.failed_requests,
+            "avg_latency_ms":      m.avg_latency_ms,
+            "min_latency_ms":      m.min_latency_ms,
+            "max_latency_ms":      m.max_latency_ms,
+            "p50_latency_ms":      m.p50_latency_ms,
+            "p95_latency_ms":      m.p95_latency_ms,
+            "p99_latency_ms":      m.p99_latency_ms,
+            "requests_per_second": m.requests_per_second,
+            "execution_time_s":    m.execution_time_s,
+            "overall_status":      m.overall_status,
+        }
+
+    def _delta(ma: dict, mb: dict) -> dict:
+        numeric_keys = [k for k, v in ma.items() if isinstance(v, (int, float))]
+        return {k: round(mb[k] - ma[k], 3) for k in numeric_keys}
+
+    # Pair test results by position (same index) or by matching test name
+    paired = []
+    a_names = {r.test_name: r for r in a.results}
+    b_names = {r.test_name: r for r in b.results}
+
+    # First try name-matching
+    all_names = list(dict.fromkeys(list(a_names) + list(b_names)))
+    for name in all_names:
+        ra = a_names.get(name)
+        rb = b_names.get(name)
+        ma = _metrics_dict(ra.metrics) if ra else None
+        mb = _metrics_dict(rb.metrics) if rb else None
+        paired.append({
+            "test_name": name,
+            "run_a":     ma,
+            "run_b":     mb,
+            "delta":     _delta(ma, mb) if ma and mb else None,
+        })
+
+    return {
+        "run_a": {
+            "run_id":     a.run_id,
+            "filename":   a.filename,
+            "started_at": a.started_at,
+        },
+        "run_b": {
+            "run_id":     b.run_id,
+            "filename":   b.filename,
+            "started_at": b.started_at,
+        },
+        "pairs": paired,
+    }
