@@ -1,4 +1,4 @@
-# WolkenLoadRunner
+# LoadRunner
 
 An async HTTP load testing tool driven by Excel configuration. Define your test cases in a spreadsheet, run them with up to hundreds of concurrent workers, and get detailed latency metrics with a real-time web dashboard.
 
