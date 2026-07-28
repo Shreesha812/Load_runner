@@ -42,8 +42,8 @@ export interface RunSummary {
 // WebSocket event shapes
 export type WsEvent =
   | { type: "status";       status: RunStatus; message: string }
-  | { type: "test_start";   index: number; total: number; test_name: string; concurrency: number; strategy: string }
-  | { type: "live_metrics"; test_name: string; metrics: MetricsSnapshot }
+  | { type: "test_start";   index: number; total: number; test_name: string; concurrency: number; strategy: string; ramp_up_seconds: number }
+  | { type: "live_metrics"; test_name: string; metrics: MetricsSnapshot; active_workers: number }
   | { type: "test_done";    index: number; test_name: string; metrics: MetricsSnapshot }
   | { type: "done";         results: TestResult[] }
   | { type: "error";        message: string }

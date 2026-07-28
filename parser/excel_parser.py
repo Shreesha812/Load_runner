@@ -37,6 +37,10 @@ COLUMN_MAP = {
     # Enable/disable
     "enabled": "enabled",
     "enable": "enabled",
+    # Ramp-up duration in seconds (optional)
+    "ramp up seconds": "ramp_up_seconds",
+    "ramp_up_seconds": "ramp_up_seconds",
+    "ramp up": "ramp_up_seconds",
 }
 
 
@@ -64,7 +68,7 @@ class ExcelParser:
                 logger.warning("Unrecognised column header '%s' at index %d — ignored.", header, idx)
 
         # Verify truly required fields are present (optional fields excluded)
-        OPTIONAL_FIELDS = {"variable_order", "fixed_variables", "response_structure", "headers"}
+        OPTIONAL_FIELDS = {"variable_order", "fixed_variables", "response_structure", "headers", "ramp_up_seconds"}
         found_fields = set(index_to_field.values())
         required_fields = set(COLUMN_MAP.values()) - OPTIONAL_FIELDS
         missing = required_fields - found_fields
@@ -95,6 +99,7 @@ class ExcelParser:
                     concurrency=row_data.get("concurrency"),
                     response_structure=row_data.get("response_structure"),
                     enabled=row_data.get("enabled"),
+                    ramp_up_seconds=row_data.get("ramp_up_seconds"),
                 )
             )
 

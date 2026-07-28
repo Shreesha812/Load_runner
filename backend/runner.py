@@ -87,22 +87,30 @@ async def execute_run(run_id: str, xlsx_path: str, config) -> None:
                 break
 
             test_name = f"Test {idx}: {test_def.method} {test_def.url}"
+            ramp_up = getattr(test_def, "ramp_up_seconds", 0) or 0
             await emit("test_start", {
                 "index": idx,
                 "total": len(enabled),
                 "test_name": test_name,
                 "concurrency": test_def.concurrency,
                 "strategy": test_def.strategy,
+                "ramp_up_seconds": ramp_up,
             })
 
             metrics = Metrics()
 
-            async def stream_live(m=metrics, name=test_name):
+            async def stream_live(m=metrics, name=test_name, sched=scheduler):
                 while True:
                     await asyncio.sleep(0.5)
+                    active = (
+                        sched.ramp_controller.active_workers
+                        if sched.ramp_controller is not None
+                        else test_def.concurrency
+                    )
                     await emit("live_metrics", {
                         "test_name": name,
                         "metrics": _snapshot(m).model_dump(),
+                        "active_workers": active,
                     })
                     await store.record_timeseries(
                         run_id, name,

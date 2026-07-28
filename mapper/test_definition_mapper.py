@@ -105,4 +105,5 @@ class TestDefinitionMapper:
             concurrency=int(float(row.concurrency)) if row.concurrency is not None else 1,
             enabled=row.enabled.lower() == "enable" if row.enabled else False,
             response_structure=row.response_structure or None,
+            ramp_up_seconds=int(float(row.ramp_up_seconds)) if row.ramp_up_seconds is not None else 0,
         )

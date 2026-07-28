@@ -34,3 +34,4 @@ class ExcelTestDefinitionRow:
     concurrency: Optional[object] = None
     response_structure: Optional[str] = None
     enabled: Optional[str] = None
+    ramp_up_seconds: Optional[object] = None  # gradual worker ramp-up duration

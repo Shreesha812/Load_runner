@@ -24,3 +24,5 @@ class TestDefinition:
     enabled: bool = True
 
     response_structure: Optional[str] = None
+
+    ramp_up_seconds: int = 0   # 0 = no ramp, all workers start together
