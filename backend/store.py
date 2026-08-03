@@ -80,6 +80,7 @@ class SQLiteRunStore:
                         latency_ms=e["latency_ms"],
                         combination=json.loads(e["combination"]),
                         error_type=e["error_type"] if "error_type" in e.keys() else "",
+                        validation_failures=json.loads(e["validation_failures"]) if "validation_failures" in e.keys() else [],
                     )
                     if e["entry_type"] == "success":
                         success_list.append(entry)
@@ -163,10 +164,11 @@ class SQLiteRunStore:
                     for entry_type, e in all_entries:
                         await db.execute(
                             """INSERT INTO request_entries
-                               (test_result_id, request_id, entry_type, status_code, latency_ms, combination, error_type)
-                               VALUES (?,?,?,?,?,?,?)""",
+                               (test_result_id, request_id, entry_type, status_code, latency_ms, combination, error_type, validation_failures)
+                               VALUES (?,?,?,?,?,?,?,?)""",
                             (tr_id, e.id, entry_type, e.status,
-                             e.latency_ms, json.dumps(e.combination), e.error_type),
+                             e.latency_ms, json.dumps(e.combination),
+                             e.error_type, json.dumps(e.validation_failures)),
                         )
 
             await db.commit()

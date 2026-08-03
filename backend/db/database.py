@@ -49,7 +49,8 @@ CREATE TABLE IF NOT EXISTS request_entries (
     status_code    INTEGER,
     latency_ms     REAL    NOT NULL,
     combination    TEXT    NOT NULL,
-    error_type     TEXT    NOT NULL DEFAULT ''
+    error_type     TEXT    NOT NULL DEFAULT '',
+    validation_failures TEXT NOT NULL DEFAULT '[]'
 );
 """
 
@@ -99,6 +100,12 @@ async def init_db() -> None:
             await db.execute("ALTER TABLE request_entries ADD COLUMN error_type TEXT NOT NULL DEFAULT ''")
         except Exception:
             pass  # column already exists — safe to ignore
+
+        # Migration: add validation_failures column if it doesn't exist yet
+        try:
+            await db.execute("ALTER TABLE request_entries ADD COLUMN validation_failures TEXT NOT NULL DEFAULT '[]'")
+        except Exception:
+            pass
 
         # Migration: add error breakdown columns to test_results if not present
         for col in [

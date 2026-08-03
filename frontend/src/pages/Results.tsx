@@ -33,11 +33,12 @@ function aggregate(results: TestResult[]) {
 
 // Error type badge
 const ERROR_BADGE: Record<string, { label: string; cls: string }> = {
-  timeout:          { label: "Timeout",     cls: "bg-orange-900/40 text-orange-400 border-orange-800" },
-  connection_error: { label: "Connection",  cls: "bg-red-900/40 text-red-400 border-red-800" },
-  "4xx":            { label: "4xx",         cls: "bg-yellow-900/40 text-yellow-400 border-yellow-800" },
-  "5xx":            { label: "5xx",         cls: "bg-red-900/50 text-red-300 border-red-700" },
-  unknown:          { label: "Unknown",     cls: "bg-gray-800 text-gray-400 border-gray-700" },
+  timeout:            { label: "Timeout",    cls: "bg-orange-900/40 text-orange-400 border-orange-800" },
+  connection_error:   { label: "Connection", cls: "bg-red-900/40 text-red-400 border-red-800" },
+  "4xx":              { label: "4xx",        cls: "bg-yellow-900/40 text-yellow-400 border-yellow-800" },
+  "5xx":              { label: "5xx",        cls: "bg-red-900/50 text-red-300 border-red-700" },
+  unknown:            { label: "Unknown",    cls: "bg-gray-800 text-gray-400 border-gray-700" },
+  validation_failed:  { label: "Validation", cls: "bg-purple-900/40 text-purple-400 border-purple-800" },
 };
 
 function ErrorTypeBadge({ type }: { type: string }) {
@@ -58,6 +59,7 @@ function ErrorBreakdown({ metrics }: { metrics: import("../types").MetricsSnapsh
     { label: "4xx",        value: metrics.client_errors,     color: "bg-yellow-500" },
     { label: "5xx",        value: metrics.server_errors,     color: "bg-red-700" },
     { label: "Unknown",    value: metrics.unknown_errors,    color: "bg-gray-500" },
+    { label: "Validation", value: metrics.validation_errors, color: "bg-purple-500" },
   ].filter((i) => i.value > 0);
 
   if (!items.length) return null;
@@ -112,24 +114,42 @@ function RequestList({ entries, type, metrics }: {
             </thead>
             <tbody>
               {entries.map((e, i) => (
-                <tr key={i} className="border-t border-gray-800 hover:bg-gray-900/30">
-                  <td className="px-4 py-2 font-mono text-gray-300">{e.id}</td>
-                  <td className={`px-4 py-2 font-mono font-medium
-                    ${e.status && e.status < 400 ? "text-green-400" : "text-red-400"}`}>
-                    {e.status ?? "—"}
-                  </td>
-                  {!isSuccess && (
-                    <td className="px-4 py-2">
-                      <ErrorTypeBadge type={e.error_type} />
+                <>
+                  <tr key={i} className="border-t border-gray-800 hover:bg-gray-900/30">
+                    <td className="px-4 py-2 font-mono text-gray-300">{e.id}</td>
+                    <td className={`px-4 py-2 font-mono font-medium
+                      ${e.status && e.status < 400 ? "text-green-400" : "text-red-400"}`}>
+                      {e.status ?? "—"}
                     </td>
+                    {!isSuccess && (
+                      <td className="px-4 py-2">
+                        <ErrorTypeBadge type={e.error_type} />
+                      </td>
+                    )}
+                    <td className="px-4 py-2 font-mono text-gray-300 text-right">
+                      {e.latency_ms.toFixed(1)} ms
+                    </td>
+                    <td className="px-4 py-2 text-gray-500 font-mono">
+                      {Object.entries(e.combination).map(([k, v]) => `${k}=${v}`).join(", ") || "—"}
+                    </td>
+                  </tr>
+                  {/* Validation failure details — shown inline under the row */}
+                  {!isSuccess && e.error_type === "validation_failed" && e.validation_failures?.length > 0 && (
+                    <tr key={`${i}-vf`} className="bg-purple-950/20">
+                      <td colSpan={5} className="px-4 pb-2 pt-0">
+                        <div className="flex flex-wrap gap-1.5">
+                          {e.validation_failures.map((rule, ri) => (
+                            <span key={ri}
+                              className="inline-flex items-center px-2 py-0.5 rounded text-xs
+                                font-mono bg-purple-900/40 text-purple-300 border border-purple-800">
+                              {rule}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
                   )}
-                  <td className="px-4 py-2 font-mono text-gray-300 text-right">
-                    {e.latency_ms.toFixed(1)} ms
-                  </td>
-                  <td className="px-4 py-2 text-gray-500 font-mono">
-                    {Object.entries(e.combination).map(([k, v]) => `${k}=${v}`).join(", ") || "—"}
-                  </td>
-                </tr>
+                </>
               ))}
             </tbody>
           </table>

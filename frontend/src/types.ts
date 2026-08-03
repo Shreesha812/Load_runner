@@ -5,7 +5,8 @@ export interface RequestEntry {
   status: number | null;
   latency_ms: number;
   combination: Record<string, string>;
-  error_type: string;   // timeout | connection_error | 4xx | 5xx | unknown | ""
+  error_type: string;
+  validation_failures: string[];  // failed rule descriptions, e.g. ["missing:token"]
 }
 
 export interface MetricsSnapshot {
@@ -27,6 +28,7 @@ export interface MetricsSnapshot {
   client_errors: number;
   server_errors: number;
   unknown_errors: number;
+  validation_errors: number;
   success_list: RequestEntry[];
   failure_list: RequestEntry[];
 }

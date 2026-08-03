@@ -12,7 +12,9 @@ class RequestEntry:
     status: int | None
     latency_ms: float
     combination: dict = field(default_factory=dict)
-    error_type: str   = ""   # timeout | connection_error | 4xx | 5xx | unknown | ""
+    error_type: str   = ""
+    validation_failures: list = field(default_factory=list)  # failed rule strings
+    validation_failures: list = field(default_factory=list)  # failed rule strings
 
 
 class Metrics:
@@ -63,6 +65,7 @@ class Metrics:
                 latency_ms=round(response.latency, 3),
                 combination=response.combination,
                 error_type=response.error_type,
+                validation_failures=getattr(response, "validation_failures", []),
             )
             if response.status is not None and 200 <= response.status < 400:
                 self.successful_requests += 1

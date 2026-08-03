@@ -126,16 +126,17 @@ export function UploadPage({ onRunStarted }: Props) {
         <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">Expected Excel columns</p>
         <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 text-xs text-gray-500 font-mono">
           {[
-            ["URL",                    "Target endpoint"],
-            ["HTTP Method",            "GET / POST / PUT…"],
-            ["Headers",                "Key: Value per line"],
+            ["URL",                     "Target endpoint"],
+            ["HTTP Method",             "GET / POST / PUT…"],
+            ["Headers",                 "Key: Value per line"],
             ["Request message Template","Body with <var>"],
-            ["variable list Order",    "sequential / random"],
-            ["List Of values",         "v1:a,b,c  or  v1:{a,b}"],
-            ["variables",              "v1:fixed_value"],
+            ["variable list Order",     "sequential / random"],
+            ["List Of values",          "v1:a,b,c  or  v1:{a,b}"],
+            ["variables",               "v1:fixed_value"],
             ["Total concurrent request","Number of workers"],
-            ["Response Structure",     "id,name,status"],
-            ["Enable",                 "Enable / Disable"],
+            ["Response Structure",      "See rules below"],
+            ["ramp up seconds",         "0 = instant (optional)"],
+            ["Enable",                  "Enable / Disable"],
           ].map(([col, desc]) => (
             <div key={col} className="flex gap-2">
               <span className="text-gray-300 shrink-0">{col}</span>
@@ -144,6 +145,35 @@ export function UploadPage({ onRunStarted }: Props) {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Response Structure validation rules */}
+      <div className="mt-4 rounded-lg border border-purple-900/60 p-4 bg-purple-950/20">
+        <p className="text-xs font-medium text-purple-400 uppercase tracking-wider mb-3">
+          Response Structure — validation rule syntax
+        </p>
+        <p className="text-xs text-gray-500 mb-3">
+          Comma-separated rules in the <span className="text-gray-300 font-mono">Response Structure</span> column.
+          A request is marked <span className="text-purple-400">validation_failed</span> if any rule is not satisfied.
+        </p>
+        <div className="space-y-1.5 text-xs font-mono">
+          {[
+            ["token",              "field must exist in the response body"],
+            ["field:token=abc",    "field value must equal abc"],
+            ["field:status~^ok",   "field value must match regex ^ok"],
+            ["field:score>0",      "field numeric value must be > 0"],
+            ["field:count>=10",    "field numeric value must be ≥ 10"],
+            ["data.id",            "nested field using dot-notation"],
+          ].map(([rule, desc]) => (
+            <div key={rule} className="flex gap-3">
+              <span className="text-purple-300 shrink-0 w-36">{rule}</span>
+              <span className="text-gray-500">{desc}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-gray-600 mt-3">
+          Example: <span className="text-gray-400 font-mono">id, status:status=success, data.token</span>
+        </p>
       </div>
     </div>
   );

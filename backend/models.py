@@ -24,7 +24,8 @@ class RequestEntry(BaseModel):
     status: Optional[int] = None
     latency_ms: float
     combination: dict = {}
-    error_type: str = ""   # timeout | connection_error | 4xx | 5xx | unknown | ""
+    error_type: str = ""                  # timeout | connection_error | 4xx | 5xx | unknown | validation_failed
+    validation_failures: list[str] = []   # rules that failed, e.g. ["missing:token", "status=success (got 'error')"]
 
 
 class MetricsSnapshot(BaseModel):

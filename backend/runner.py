@@ -21,7 +21,8 @@ def _snapshot(metrics) -> MetricsSnapshot:
     def _entries(lst):
         return [
             ApiEntry(id=e.id, status=e.status, latency_ms=e.latency_ms,
-                     combination=e.combination, error_type=e.error_type)
+                     combination=e.combination, error_type=e.error_type,
+                     validation_failures=getattr(e, "validation_failures", []))
             for e in lst
         ]
 
