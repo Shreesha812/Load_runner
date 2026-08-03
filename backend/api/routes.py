@@ -187,6 +187,40 @@ async def download_csv(run_id: str):
     return FileResponse(path, filename=f"results_{run_id}.csv", media_type="text/csv")
 
 
+# ── PATCH /api/run/{run_id}/toggle — enable/disable a test definition ────
+@router.patch("/run/{run_id}/toggle")
+async def toggle_test(run_id: str, test_idx: int, enabled: bool):
+    """
+    Set the enabled/disabled override for a test definition inside a run.
+    test_idx is 0-based index into the run's results list.
+    """
+    run = await store.get(run_id)
+    if not run:
+        raise HTTPException(404, f"Run {run_id!r} not found.")
+    if test_idx < 0 or test_idx >= len(run.results):
+        raise HTTPException(400, f"test_idx {test_idx} out of range (0–{len(run.results)-1}).")
+    await store.set_test_enabled(run_id, test_idx, enabled)
+    return {"run_id": run_id, "test_idx": test_idx, "enabled": enabled}
+
+
+# ── GET /api/run/{run_id}/overrides — fetch current toggle state ──────────
+@router.get("/run/{run_id}/overrides")
+async def get_overrides(run_id: str):
+    run = await store.get(run_id)
+    if not run:
+        raise HTTPException(404, f"Run {run_id!r} not found.")
+    overrides = await store.get_test_overrides(run_id)
+    # Build full list using stored override or original enabled value from test_name
+    result = []
+    for idx, tr in enumerate(run.results):
+        result.append({
+            "test_idx":  idx,
+            "test_name": tr.test_name,
+            "enabled":   overrides.get(idx, True),  # default True if never toggled
+        })
+    return result
+
+
 # ── GET /api/compare ──────────────────────────────────────────────────────
 @router.get("/compare")
 async def compare_runs(run_a: str, run_b: str):

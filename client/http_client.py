@@ -3,22 +3,35 @@ import time
 
 import aiohttp
 
-from models.http_response import HttpResponse
+from models.http_response import (
+    HttpResponse,
+    ERROR_TYPE_NONE, ERROR_TYPE_TIMEOUT,
+    ERROR_TYPE_CONNECTION, ERROR_TYPE_4XX,
+    ERROR_TYPE_5XX, ERROR_TYPE_UNKNOWN,
+)
 
 logger = logging.getLogger(__name__)
 
-# Default connection pool and timeout settings
-DEFAULT_TOTAL_TIMEOUT = 30        # seconds — total request lifetime
-DEFAULT_CONNECT_TIMEOUT = 10      # seconds — TCP connect phase
-DEFAULT_POOL_SIZE = 100           # max simultaneous connections
+DEFAULT_TOTAL_TIMEOUT   = 30
+DEFAULT_CONNECT_TIMEOUT = 10
+DEFAULT_POOL_SIZE       = 100
+
+
+def _classify_status(status: int) -> str:
+    """Return an error_type string for a completed HTTP response."""
+    if 200 <= status < 400:
+        return ERROR_TYPE_NONE
+    if 400 <= status < 500:
+        return ERROR_TYPE_4XX
+    if 500 <= status < 600:
+        return ERROR_TYPE_5XX
+    return ERROR_TYPE_UNKNOWN
 
 
 class HttpClient:
     """
     Async HTTP client backed by a shared aiohttp.ClientSession.
-
-    The session should be created once and reused across all requests.
-    Use as an async context manager to ensure proper cleanup:
+    Use as an async context manager:
 
         async with HttpClient(timeout=30, pool_size=50) as client:
             response = await client.send(job)
@@ -30,13 +43,10 @@ class HttpClient:
         connect_timeout: int = DEFAULT_CONNECT_TIMEOUT,
         pool_size: int = DEFAULT_POOL_SIZE,
     ):
-        self._timeout = aiohttp.ClientTimeout(
-            total=timeout,
-            connect=connect_timeout,
-        )
+        self._timeout = aiohttp.ClientTimeout(total=timeout, connect=connect_timeout)
         self._connector = aiohttp.TCPConnector(
             limit=pool_size,
-            ttl_dns_cache=300,   # cache DNS results for 5 minutes
+            ttl_dns_cache=300,
             use_dns_cache=True,
         )
         self._session: aiohttp.ClientSession | None = None
@@ -55,9 +65,7 @@ class HttpClient:
 
     async def send(self, job) -> HttpResponse:
         if self._session is None:
-            raise RuntimeError(
-                "HttpClient must be used as an async context manager."
-            )
+            raise RuntimeError("HttpClient must be used as an async context manager.")
 
         start = time.perf_counter()
 
@@ -68,29 +76,28 @@ class HttpClient:
                 headers=job.headers,
                 data=job.body or None,
             ) as response:
-                body = await response.text()
+                body    = await response.text()
                 latency = (time.perf_counter() - start) * 1000
-                logger.debug(
-                    "HTTP %s %s -> %s (%.1f ms)",
-                    job.method, job.url, response.status, latency,
-                )
+                etype   = _classify_status(response.status)
+                logger.debug("HTTP %s %s -> %s (%.1f ms)", job.method, job.url, response.status, latency)
                 return HttpResponse(
                     status=response.status,
                     body=body,
                     latency=latency,
+                    error_type=etype,
                 )
-
-        except aiohttp.ClientConnectorError as e:
-            latency = (time.perf_counter() - start) * 1000
-            logger.warning("Connection error for %s %s: %s", job.method, job.url, e)
-            return HttpResponse(status=None, body=str(e), latency=latency)
 
         except aiohttp.ServerTimeoutError as e:
             latency = (time.perf_counter() - start) * 1000
-            logger.warning("Timeout for %s %s after %.1f ms", job.method, job.url, latency)
-            return HttpResponse(status=None, body=str(e), latency=latency)
+            logger.warning("Timeout %s %s after %.1f ms", job.method, job.url, latency)
+            return HttpResponse(status=None, body=str(e), latency=latency, error_type=ERROR_TYPE_TIMEOUT)
+
+        except aiohttp.ClientConnectorError as e:
+            latency = (time.perf_counter() - start) * 1000
+            logger.warning("Connection error %s %s: %s", job.method, job.url, e)
+            return HttpResponse(status=None, body=str(e), latency=latency, error_type=ERROR_TYPE_CONNECTION)
 
         except Exception as e:
             latency = (time.perf_counter() - start) * 1000
-            logger.error("Unexpected error for %s %s: %s", job.method, job.url, e)
-            return HttpResponse(status=None, body=str(e), latency=latency)
+            logger.error("Unexpected error %s %s: %s", job.method, job.url, e)
+            return HttpResponse(status=None, body=str(e), latency=latency, error_type=ERROR_TYPE_UNKNOWN)

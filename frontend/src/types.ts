@@ -5,6 +5,7 @@ export interface RequestEntry {
   status: number | null;
   latency_ms: number;
   combination: Record<string, string>;
+  error_type: string;   // timeout | connection_error | 4xx | 5xx | unknown | ""
 }
 
 export interface MetricsSnapshot {
@@ -20,8 +21,20 @@ export interface MetricsSnapshot {
   requests_per_second: number;
   execution_time_s: number;
   overall_status: string;
+  // Error breakdown
+  timeout_errors: number;
+  connection_errors: number;
+  client_errors: number;
+  server_errors: number;
+  unknown_errors: number;
   success_list: RequestEntry[];
   failure_list: RequestEntry[];
+}
+
+export interface TestOverride {
+  test_idx: number;
+  test_name: string;
+  enabled: boolean;
 }
 
 export interface TestResult {

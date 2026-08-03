@@ -20,7 +20,8 @@ def _snapshot(metrics) -> MetricsSnapshot:
 
     def _entries(lst):
         return [
-            ApiEntry(id=e.id, status=e.status, latency_ms=e.latency_ms, combination=e.combination)
+            ApiEntry(id=e.id, status=e.status, latency_ms=e.latency_ms,
+                     combination=e.combination, error_type=e.error_type)
             for e in lst
         ]
 
@@ -37,6 +38,11 @@ def _snapshot(metrics) -> MetricsSnapshot:
         requests_per_second=round(metrics.requests_per_second, 3),
         execution_time_s=round(metrics.execution_time, 3),
         overall_status=metrics.overall_status,
+        timeout_errors=metrics.timeout_errors,
+        connection_errors=metrics.connection_errors,
+        client_errors=metrics.client_errors,
+        server_errors=metrics.server_errors,
+        unknown_errors=metrics.unknown_errors,
         success_list=_entries(metrics.success_list),
         failure_list=_entries(metrics.failure_list),
     )

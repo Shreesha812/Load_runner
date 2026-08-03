@@ -12,6 +12,7 @@ class RequestEntry:
     status: int | None
     latency_ms: float
     combination: dict = field(default_factory=dict)
+    error_type: str   = ""   # timeout | connection_error | 4xx | 5xx | unknown | ""
 
 
 class Metrics:
@@ -26,8 +27,7 @@ class Metrics:
         self.total_requests: int = 0
         self.successful_requests: int = 0
         self.failed_requests: int = 0
-
-        self.total_latency: float = 0.0
+        self.total_latency: float = 0.0                                                                                               
         self.min_latency: float = float("inf")
         self.max_latency: float = 0.0
 
@@ -39,6 +39,13 @@ class Metrics:
 
         self.start_time: float = time.perf_counter()
         self._lock = asyncio.Lock()
+
+        # Error breakdown counters
+        self.timeout_errors: int = 0
+        self.connection_errors: int = 0
+        self.client_errors: int = 0    # 4xx
+        self.server_errors: int = 0    # 5xx
+        self.unknown_errors: int = 0
 
     async def record(self, response: HttpResponse) -> None:
         async with self._lock:
@@ -54,14 +61,26 @@ class Metrics:
                 status=response.status,
                 latency_ms=round(response.latency, 3),
                 combination=response.combination,
+                error_type=response.error_type,
             )
-
             if response.status is not None and 200 <= response.status < 400:
                 self.successful_requests += 1
                 self.success_list.append(entry)
             else:
                 self.failed_requests += 1
                 self.failure_list.append(entry)
+                # Increment the right breakdown counter
+                et = response.error_type
+                if et == "timeout":
+                    self.timeout_errors += 1
+                elif et == "connection_error":
+                    self.connection_errors += 1
+                elif et == "4xx":
+                    self.client_errors += 1
+                elif et == "5xx":
+                    self.server_errors += 1
+                elif et:
+                    self.unknown_errors += 1
 
     # ── Computed properties ─────────────────────────────────────────────
 

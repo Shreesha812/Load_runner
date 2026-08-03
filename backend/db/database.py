@@ -48,7 +48,8 @@ CREATE TABLE IF NOT EXISTS request_entries (
     entry_type     TEXT    NOT NULL,
     status_code    INTEGER,
     latency_ms     REAL    NOT NULL,
-    combination    TEXT    NOT NULL
+    combination    TEXT    NOT NULL,
+    error_type     TEXT    NOT NULL DEFAULT ''
 );
 """
 
@@ -61,6 +62,16 @@ CREATE TABLE IF NOT EXISTS timeseries (
     rps            REAL    DEFAULT 0,
     avg_latency_ms REAL    DEFAULT 0,
     total_requests INTEGER DEFAULT 0
+);
+"""
+
+CREATE_TEST_OVERRIDES = """
+CREATE TABLE IF NOT EXISTS test_overrides (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id    TEXT    NOT NULL REFERENCES runs(run_id),
+    test_idx  INTEGER NOT NULL,
+    enabled   INTEGER NOT NULL DEFAULT 1,
+    UNIQUE(run_id, test_idx)
 );
 """
 
@@ -80,8 +91,14 @@ async def init_db() -> None:
         await db.execute(CREATE_TEST_RESULTS)
         await db.execute(CREATE_REQUEST_ENTRIES)
         await db.execute(CREATE_TIMESERIES)
+        await db.execute(CREATE_TEST_OVERRIDES)
         for stmt in CREATE_INDEXES:
             await db.execute(stmt)
+        # Migration: add error_type column if it doesn't exist yet
+        try:
+            await db.execute("ALTER TABLE request_entries ADD COLUMN error_type TEXT NOT NULL DEFAULT ''")
+        except Exception:
+            pass  # column already exists — safe to ignore
         await db.commit()
 
 

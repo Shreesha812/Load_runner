@@ -31,8 +31,54 @@ function aggregate(results: TestResult[]) {
   return { total, success, failed, avgLat, p99, rps, totalTime, overallStatus };
 }
 
-// Inline collapsible request list
-function RequestList({ entries, type }: { entries: RequestEntry[]; type: "success" | "failure" }) {
+// Error type badge
+const ERROR_BADGE: Record<string, { label: string; cls: string }> = {
+  timeout:          { label: "Timeout",     cls: "bg-orange-900/40 text-orange-400 border-orange-800" },
+  connection_error: { label: "Connection",  cls: "bg-red-900/40 text-red-400 border-red-800" },
+  "4xx":            { label: "4xx",         cls: "bg-yellow-900/40 text-yellow-400 border-yellow-800" },
+  "5xx":            { label: "5xx",         cls: "bg-red-900/50 text-red-300 border-red-700" },
+  unknown:          { label: "Unknown",     cls: "bg-gray-800 text-gray-400 border-gray-700" },
+};
+
+function ErrorTypeBadge({ type }: { type: string }) {
+  const def = ERROR_BADGE[type];
+  if (!def) return null;
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${def.cls}`}>
+      {def.label}
+    </span>
+  );
+}
+
+// Error breakdown summary bar
+function ErrorBreakdown({ metrics }: { metrics: import("../types").MetricsSnapshot }) {
+  const items = [
+    { label: "Timeout",    value: metrics.timeout_errors,    color: "bg-orange-500" },
+    { label: "Connection", value: metrics.connection_errors, color: "bg-red-500" },
+    { label: "4xx",        value: metrics.client_errors,     color: "bg-yellow-500" },
+    { label: "5xx",        value: metrics.server_errors,     color: "bg-red-700" },
+    { label: "Unknown",    value: metrics.unknown_errors,    color: "bg-gray-500" },
+  ].filter((i) => i.value > 0);
+
+  if (!items.length) return null;
+
+  return (
+    <div className="flex flex-wrap gap-3 px-4 py-2 bg-gray-900/60 border-b border-gray-800 text-xs">
+      {items.map(({ label, value, color }) => (
+        <span key={label} className="flex items-center gap-1.5 text-gray-400">
+          <span className={`w-2 h-2 rounded-sm inline-block ${color}`} />
+          {label}: <span className="text-white font-mono">{value}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function RequestList({ entries, type, metrics }: {
+  entries: RequestEntry[];
+  type: "success" | "failure";
+  metrics?: import("../types").MetricsSnapshot;
+}) {
   const [open, setOpen] = useState(false);
   if (!entries.length) return null;
   const isSuccess = type === "success";
@@ -45,13 +91,13 @@ function RequestList({ entries, type }: { entries: RequestEntry[]; type: "succes
           hover:opacity-80 transition-opacity`}
       >
         <span className="flex items-center gap-2">
-          {isSuccess
-            ? <CheckCircle size={15} />
-            : <XCircle size={15} />}
+          {isSuccess ? <CheckCircle size={15} /> : <XCircle size={15} />}
           {isSuccess ? "Success list" : "Failure list"} — {entries.length} request{entries.length !== 1 ? "s" : ""}
         </span>
         {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
+      {/* Error breakdown bar — only for failure list */}
+      {!isSuccess && metrics && <ErrorBreakdown metrics={metrics} />}
       {open && (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -59,6 +105,7 @@ function RequestList({ entries, type }: { entries: RequestEntry[]; type: "succes
               <tr className="bg-gray-900 text-gray-500">
                 <th className="px-4 py-2 text-left font-medium">Request ID</th>
                 <th className="px-4 py-2 text-left font-medium">Status</th>
+                {!isSuccess && <th className="px-4 py-2 text-left font-medium">Error</th>}
                 <th className="px-4 py-2 text-right font-medium">Latency</th>
                 <th className="px-4 py-2 text-left font-medium">Variables</th>
               </tr>
@@ -69,8 +116,13 @@ function RequestList({ entries, type }: { entries: RequestEntry[]; type: "succes
                   <td className="px-4 py-2 font-mono text-gray-300">{e.id}</td>
                   <td className={`px-4 py-2 font-mono font-medium
                     ${e.status && e.status < 400 ? "text-green-400" : "text-red-400"}`}>
-                    {e.status ?? "error"}
+                    {e.status ?? "—"}
                   </td>
+                  {!isSuccess && (
+                    <td className="px-4 py-2">
+                      <ErrorTypeBadge type={e.error_type} />
+                    </td>
+                  )}
                   <td className="px-4 py-2 font-mono text-gray-300 text-right">
                     {e.latency_ms.toFixed(1)} ms
                   </td>
@@ -183,7 +235,7 @@ export function ResultsPage({ runId, results, onBack, onCompare }: Props) {
             </p>
             <div className="space-y-2">
               <RequestList entries={r.metrics.success_list} type="success" />
-              <RequestList entries={r.metrics.failure_list} type="failure" />
+              <RequestList entries={r.metrics.failure_list} type="failure" metrics={r.metrics} />
             </div>
           </div>
         );

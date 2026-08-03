@@ -79,6 +79,7 @@ class SQLiteRunStore:
                         status=e["status_code"],
                         latency_ms=e["latency_ms"],
                         combination=json.loads(e["combination"]),
+                        error_type=e["error_type"] if "error_type" in e.keys() else "",
                     )
                     if e["entry_type"] == "success":
                         success_list.append(entry)
@@ -152,10 +153,10 @@ class SQLiteRunStore:
                     for entry_type, e in all_entries:
                         await db.execute(
                             """INSERT INTO request_entries
-                               (test_result_id, request_id, entry_type, status_code, latency_ms, combination)
-                               VALUES (?,?,?,?,?,?)""",
+                               (test_result_id, request_id, entry_type, status_code, latency_ms, combination, error_type)
+                               VALUES (?,?,?,?,?,?,?)""",
                             (tr_id, e.id, entry_type, e.status,
-                             e.latency_ms, json.dumps(e.combination)),
+                             e.latency_ms, json.dumps(e.combination), e.error_type),
                         )
 
             await db.commit()
@@ -204,6 +205,28 @@ class SQLiteRunStore:
                 results.append(run)
 
         return results
+
+    # ── Test enable/disable overrides ────────────────────────────────────
+
+    async def set_test_enabled(self, run_id: str, test_idx: int, enabled: bool) -> None:
+        """Upsert the enabled override for a specific test within a run."""
+        async with get_db() as db:
+            await db.execute(
+                """INSERT INTO test_overrides (run_id, test_idx, enabled)
+                   VALUES (?, ?, ?)
+                   ON CONFLICT(run_id, test_idx) DO UPDATE SET enabled=excluded.enabled""",
+                (run_id, test_idx, 1 if enabled else 0),
+            )
+            await db.commit()
+
+    async def get_test_overrides(self, run_id: str) -> dict[int, bool]:
+        """Return {test_idx: enabled} for all overrides stored for a run."""
+        async with get_db() as db:
+            async with db.execute(
+                "SELECT test_idx, enabled FROM test_overrides WHERE run_id=?", (run_id,)
+            ) as cur:
+                rows = await cur.fetchall()
+        return {row["test_idx"]: bool(row["enabled"]) for row in rows}
 
     # ── Timeseries (for Sprint 3 live chart persistence) ─────────────────
 

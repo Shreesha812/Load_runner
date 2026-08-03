@@ -44,3 +44,18 @@ export async function compareRuns(runA: string, runB: string) {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
+export async function getOverrides(runId: string) {
+  const res = await fetch(`${BASE}/run/${runId}/overrides`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function toggleTest(runId: string, testIdx: number, enabled: boolean) {
+  const res = await fetch(
+    `${BASE}/run/${runId}/toggle?test_idx=${testIdx}&enabled=${enabled}`,
+    { method: "PATCH" }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
