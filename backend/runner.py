@@ -43,6 +43,7 @@ def _snapshot(metrics) -> MetricsSnapshot:
         client_errors=metrics.client_errors,
         server_errors=metrics.server_errors,
         unknown_errors=metrics.unknown_errors,
+        validation_errors=metrics.validation_errors,
         success_list=_entries(metrics.success_list),
         failure_list=_entries(metrics.failure_list),
     )

@@ -128,24 +128,38 @@ async def download_json(run_id: str):
     if not run or run.status != RunStatus.done:
         raise HTTPException(404, "Results not available.")
 
-    from report.file_report import FileReport
-    from metrics.metrics import Metrics
-
-    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
-        path = f.name
-
-    fr = FileReport()
+    # Build JSON directly from the already-correct MetricsSnapshot fields.
+    # Previously this reconstructed a fake Metrics engine object with only
+    # 3 latency samples which produced wrong P50/P95/P99 values.
+    records = []
     for result in run.results:
         m = result.metrics
-        met = Metrics()
-        met.total_requests = m.total_requests
-        met.successful_requests = m.successful_requests
-        met.failed_requests = m.failed_requests
-        met.total_latency = m.avg_latency_ms * m.total_requests
-        met.min_latency = m.min_latency_ms
-        met.max_latency = m.max_latency_ms
-        met._latencies = [m.p50_latency_ms, m.p95_latency_ms, m.p99_latency_ms]
-        fr.write(met, path, test_name=result.test_name)
+        records.append({
+            "test_name":            result.test_name,
+            "total_requests":       m.total_requests,
+            "successful_requests":  m.successful_requests,
+            "failed_requests":      m.failed_requests,
+            "avg_latency_ms":       m.avg_latency_ms,
+            "min_latency_ms":       m.min_latency_ms,
+            "max_latency_ms":       m.max_latency_ms,
+            "p50_latency_ms":       m.p50_latency_ms,
+            "p95_latency_ms":       m.p95_latency_ms,
+            "p99_latency_ms":       m.p99_latency_ms,
+            "requests_per_second":  m.requests_per_second,
+            "execution_time_s":     m.execution_time_s,
+            "overall_status":       m.overall_status,
+            "timeout_errors":       m.timeout_errors,
+            "connection_errors":    m.connection_errors,
+            "client_errors":        m.client_errors,
+            "server_errors":        m.server_errors,
+            "unknown_errors":       m.unknown_errors,
+            "validation_errors":    m.validation_errors,
+        })
+
+    import json as _json
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as f:
+        path = f.name
+        _json.dump(records, f, indent=2)
 
     return FileResponse(path, filename=f"results_{run_id}.json", media_type="application/json")
 
@@ -161,7 +175,9 @@ async def download_csv(run_id: str):
         "test_name", "total_requests", "successful_requests", "failed_requests",
         "avg_latency_ms", "min_latency_ms", "max_latency_ms",
         "p50_latency_ms", "p95_latency_ms", "p99_latency_ms",
-        "requests_per_second", "execution_time_s",
+        "requests_per_second", "execution_time_s", "overall_status",
+        "timeout_errors", "connection_errors", "client_errors",
+        "server_errors", "unknown_errors", "validation_errors",
     ]
     with tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode="w", newline="") as f:
         path = f.name
@@ -170,18 +186,25 @@ async def download_csv(run_id: str):
         for result in run.results:
             m = result.metrics
             writer.writerow({
-                "test_name": result.test_name,
-                "total_requests": m.total_requests,
+                "test_name":           result.test_name,
+                "total_requests":      m.total_requests,
                 "successful_requests": m.successful_requests,
-                "failed_requests": m.failed_requests,
-                "avg_latency_ms": m.avg_latency_ms,
-                "min_latency_ms": m.min_latency_ms,
-                "max_latency_ms": m.max_latency_ms,
-                "p50_latency_ms": m.p50_latency_ms,
-                "p95_latency_ms": m.p95_latency_ms,
-                "p99_latency_ms": m.p99_latency_ms,
+                "failed_requests":     m.failed_requests,
+                "avg_latency_ms":      m.avg_latency_ms,
+                "min_latency_ms":      m.min_latency_ms,
+                "max_latency_ms":      m.max_latency_ms,
+                "p50_latency_ms":      m.p50_latency_ms,
+                "p95_latency_ms":      m.p95_latency_ms,
+                "p99_latency_ms":      m.p99_latency_ms,
                 "requests_per_second": m.requests_per_second,
-                "execution_time_s": m.execution_time_s,
+                "execution_time_s":    m.execution_time_s,
+                "overall_status":      m.overall_status,
+                "timeout_errors":      m.timeout_errors,
+                "connection_errors":   m.connection_errors,
+                "client_errors":       m.client_errors,
+                "server_errors":       m.server_errors,
+                "unknown_errors":      m.unknown_errors,
+                "validation_errors":   m.validation_errors,
             })
 
     return FileResponse(path, filename=f"results_{run_id}.csv", media_type="text/csv")

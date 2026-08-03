@@ -99,6 +99,22 @@ async def init_db() -> None:
             await db.execute("ALTER TABLE request_entries ADD COLUMN error_type TEXT NOT NULL DEFAULT ''")
         except Exception:
             pass  # column already exists — safe to ignore
+
+        # Migration: add error breakdown columns to test_results if not present
+        for col in [
+            "timeout_errors INTEGER NOT NULL DEFAULT 0",
+            "connection_errors INTEGER NOT NULL DEFAULT 0",
+            "client_errors INTEGER NOT NULL DEFAULT 0",
+            "server_errors INTEGER NOT NULL DEFAULT 0",
+            "unknown_errors INTEGER NOT NULL DEFAULT 0",
+            "validation_errors INTEGER NOT NULL DEFAULT 0",
+        ]:
+            col_name = col.split()[0]
+            try:
+                await db.execute(f"ALTER TABLE test_results ADD COLUMN {col}")
+            except Exception:
+                pass  # column already exists
+
         await db.commit()
 
 

@@ -1,7 +1,11 @@
+import logging
+
 from models.configuration import Configuration
 from mapper.test_definition_mapper import TestDefinitionMapper
 from parser.workbook_model import WorkbookModel
 from validator.row_validator import RowValidator
+
+logger = logging.getLogger(__name__)
 
 
 class ConfigurationFactory:
@@ -19,7 +23,7 @@ class ConfigurationFactory:
             errors = self.validator.validate(row)
 
             if errors:
-                print(f"Skipping row because of validation errors: {errors}")
+                logger.warning("Skipping row due to validation errors: %s", errors)
                 continue
 
             test_definition = self.mapper.map(row)

@@ -46,6 +46,7 @@ class Metrics:
         self.client_errors: int = 0    # 4xx
         self.server_errors: int = 0    # 5xx
         self.unknown_errors: int = 0
+        self.validation_errors: int = 0  # validation_failed
 
     async def record(self, response: HttpResponse) -> None:
         async with self._lock:
@@ -79,6 +80,8 @@ class Metrics:
                     self.client_errors += 1
                 elif et == "5xx":
                     self.server_errors += 1
+                elif et == "validation_failed":
+                    self.validation_errors += 1
                 elif et:
                     self.unknown_errors += 1
 

@@ -50,6 +50,7 @@ class MetricsSnapshot(BaseModel):
     client_errors: int = 0
     server_errors: int = 0
     unknown_errors: int = 0
+    validation_errors: int = 0
     # Per-request detail
     success_list: list[RequestEntry] = []
     failure_list: list[RequestEntry] = []

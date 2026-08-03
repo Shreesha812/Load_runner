@@ -99,6 +99,12 @@ class SQLiteRunStore:
                     requests_per_second=tr["requests_per_second"],
                     execution_time_s=tr["execution_time_s"],
                     overall_status=tr["overall_status"],
+                    timeout_errors=tr["timeout_errors"] if "timeout_errors" in tr.keys() else 0,
+                    connection_errors=tr["connection_errors"] if "connection_errors" in tr.keys() else 0,
+                    client_errors=tr["client_errors"] if "client_errors" in tr.keys() else 0,
+                    server_errors=tr["server_errors"] if "server_errors" in tr.keys() else 0,
+                    unknown_errors=tr["unknown_errors"] if "unknown_errors" in tr.keys() else 0,
+                    validation_errors=tr["validation_errors"] if "validation_errors" in tr.keys() else 0,
                     success_list=success_list,
                     failure_list=failure_list,
                 )
@@ -114,7 +120,7 @@ class SQLiteRunStore:
                 (run.status.value, run.finished_at, run.error, run.run_id),
             )
 
-            if run.status == RunStatus.done and run.results:
+            if run.status in (RunStatus.done, RunStatus.error) and run.results:
                 # Delete old test results for this run (idempotent re-save)
                 async with db.execute(
                     "SELECT id FROM test_results WHERE run_id=?", (run.run_id,)
@@ -135,13 +141,17 @@ class SQLiteRunStore:
                            (run_id, test_name, total_requests, successful_requests, failed_requests,
                             avg_latency_ms, min_latency_ms, max_latency_ms,
                             p50_latency_ms, p95_latency_ms, p99_latency_ms,
-                            requests_per_second, execution_time_s, overall_status)
-                           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                            requests_per_second, execution_time_s, overall_status,
+                            timeout_errors, connection_errors, client_errors,
+                            server_errors, unknown_errors, validation_errors)
+                           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                         (run.run_id, result.test_name,
                          m.total_requests, m.successful_requests, m.failed_requests,
                          m.avg_latency_ms, m.min_latency_ms, m.max_latency_ms,
                          m.p50_latency_ms, m.p95_latency_ms, m.p99_latency_ms,
-                         m.requests_per_second, m.execution_time_s, m.overall_status),
+                         m.requests_per_second, m.execution_time_s, m.overall_status,
+                         m.timeout_errors, m.connection_errors, m.client_errors,
+                         m.server_errors, m.unknown_errors, m.validation_errors),
                     )
                     async with db.execute("SELECT last_insert_rowid()") as cur:
                         tr_id = (await cur.fetchone())[0]
@@ -199,6 +209,12 @@ class SQLiteRunStore:
                         requests_per_second=tr["requests_per_second"],
                         execution_time_s=tr["execution_time_s"],
                         overall_status=tr["overall_status"],
+                        timeout_errors=tr["timeout_errors"] if "timeout_errors" in tr.keys() else 0,
+                        connection_errors=tr["connection_errors"] if "connection_errors" in tr.keys() else 0,
+                        client_errors=tr["client_errors"] if "client_errors" in tr.keys() else 0,
+                        server_errors=tr["server_errors"] if "server_errors" in tr.keys() else 0,
+                        unknown_errors=tr["unknown_errors"] if "unknown_errors" in tr.keys() else 0,
+                        validation_errors=tr["validation_errors"] if "validation_errors" in tr.keys() else 0,
                         # Omit success_list/failure_list in list view for performance
                     )
                     run.results.append(TestResult(test_name=tr["test_name"], metrics=metrics))

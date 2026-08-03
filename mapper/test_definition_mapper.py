@@ -33,7 +33,10 @@ class TestDefinitionMapper:
         # legacy sheets — normalise to a single keyword.                    #
         # ---------------------------------------------------------------- #
         strategy_raw = (row.variable_strategy or "").lower()
-        if "random" in strategy_raw:
+        if strategy_raw in ("random/sequential", "sequential/random"):
+            # Ambiguous value from legacy sheets — default to sequential
+            strategy = "sequential"
+        elif "random" in strategy_raw:
             strategy = "random"
         elif "sequential" in strategy_raw:
             strategy = "sequential"

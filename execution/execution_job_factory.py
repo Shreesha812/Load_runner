@@ -13,17 +13,24 @@ class ExecutionJobFactory:
         """
         Build an ExecutionJob from a TestDefinition and rendered body.
 
-        If a combination dict is provided, variable placeholders in the URL
-        (e.g. /users/<userId>) are also substituted.
+        Variable placeholders (<varname>) are substituted in both the URL
+        and each header value, not just the request body.
         """
         url = test_definition.url
+        headers = dict(test_definition.headers)  # copy — don't mutate original
+
         if combination:
             for key, value in combination.items():
-                url = url.replace(f"<{key}>", str(value))
+                placeholder = f"<{key}>"
+                url = url.replace(placeholder, str(value))
+                headers = {
+                    k: v.replace(placeholder, str(value))
+                    for k, v in headers.items()
+                }
 
         return ExecutionJob(
             url=url,
             method=test_definition.method,
-            headers=test_definition.headers,
+            headers=headers,
             body=rendered_body,
         )
